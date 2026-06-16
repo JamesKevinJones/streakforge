@@ -1,0 +1,19 @@
+{
+  "name": "streakforge",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:server": "cd server && node index.js",
+    "dev:client": "cd client && npx vite --port 5173",
+    "build": "cd client && npx vite build",
+    "start": "cd server && node index.js",
+    "postinstall": "cd server && npm install && cd ../client && npm install"
+  },
+  "dependencies": {
+    "sql.js": "^1.14.1"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.0"
+  }
+}
