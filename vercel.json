@@ -2,12 +2,13 @@
   "version": 2,
   "buildCommand": "cd client && npm install && npm run build",
   "outputDirectory": "client/dist",
-  "installCommand": "npm install",
   "framework": null,
+  "functions": {
+    "api/**/*.js": {
+      "includeFiles": "node_modules/sql.js/dist/sql-wasm.wasm"
+    }
+  },
   "rewrites": [
-    { "source": "/api/streak/refresh", "destination": "/api/streak" },
-    { "source": "/api/streak", "destination": "/api/streak" },
-    { "source": "/api/settings", "destination": "/api/settings" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

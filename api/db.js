@@ -85,17 +85,31 @@ const api = {
 
 async function initDb() {
   if (db) return api;
+
+  // Vercel serverless: sql.js cannot find sql-wasm.wasm via its default path
+  // resolution. Read the file as a Buffer and pass it directly so no filesystem
+  // path search is needed at runtime.
+  const wasmPath = path.join(
+    path.dirname(require.resolve('sql.js')),
+    'sql-wasm.wasm'
+  );
+  const wasmBinary = fs.readFileSync(wasmPath);
+  const sqlJsConfig = {
+    wasmBinary,
+    locateFile: () => wasmPath,
+  };
+
   try {
     if (fs.existsSync(dbPath)) {
       const buffer = fs.readFileSync(dbPath);
-      const SQL = await initSqlJs();
+      const SQL = await initSqlJs(sqlJsConfig);
       db = new SQL.Database(buffer);
     } else {
-      const SQL = await initSqlJs();
+      const SQL = await initSqlJs(sqlJsConfig);
       db = new SQL.Database();
     }
   } catch (e) {
-    const SQL = await initSqlJs();
+    const SQL = await initSqlJs(sqlJsConfig);
     db = new SQL.Database();
   }
 
