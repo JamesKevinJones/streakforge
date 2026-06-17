@@ -1,21 +1,23 @@
 import { useState, useEffect, useCallback } from 'react';
+import {
+  computeStreakData,
+  fetchGitHubContributions,
+  fetchLeetCodeContributions,
+  mergeActivity,
+  getSettings,
+} from '../store';
 
 export default function useStreak() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const fetchStreak = useCallback(async () => {
+  const loadLocal = useCallback(() => {
     try {
-      setLoading(true);
+      const streakData = computeStreakData();
+      setData(streakData);
       setError(null);
-      const res = await fetch('/api/streak');
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || 'Failed to fetch streak data');
-      }
-      const json = await res.json();
-      setData(json);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -24,23 +26,46 @@ export default function useStreak() {
   }, []);
 
   const refresh = useCallback(async () => {
+    setRefreshing(true);
+    setError(null);
     try {
-      setError(null);
-      const res = await fetch('/api/streak/refresh', { method: 'POST' });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || 'Failed to refresh data');
+      const settings = getSettings();
+      if (!settings.github_username && !settings.leetcode_username) {
+        throw new Error('Configure your GitHub and LeetCode usernames in settings first.');
       }
-      const json = await res.json();
-      setData(json);
+
+      const [githubMap, leetcodeMap] = await Promise.allSettled([
+        fetchGitHubContributions(settings.github_username, settings.github_token),
+        fetchLeetCodeContributions(settings.leetcode_username),
+      ]);
+
+      const gh = githubMap.status === 'fulfilled' ? githubMap.value : {};
+      const lc = leetcodeMap.status === 'fulfilled' ? leetcodeMap.value : {};
+
+      if (githubMap.status === 'rejected' && leetcodeMap.status === 'rejected') {
+        throw new Error(`GitHub: ${githubMap.reason.message} | LeetCode: ${leetcodeMap.reason.message}`);
+      }
+
+      mergeActivity(gh, lc);
+      const streakData = computeStreakData();
+      setData(streakData);
+
+      // Warn about partial failures
+      if (githubMap.status === 'rejected') {
+        setError(`Warning: GitHub data unavailable — ${githubMap.reason.message}`);
+      } else if (leetcodeMap.status === 'rejected') {
+        setError(`Warning: LeetCode data unavailable — ${leetcodeMap.reason.message}`);
+      }
     } catch (err) {
       setError(err.message);
+    } finally {
+      setRefreshing(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchStreak();
-  }, [fetchStreak]);
+    loadLocal();
+  }, [loadLocal]);
 
-  return { data, loading, error, refresh, refetch: fetchStreak };
+  return { data, loading, error, refresh, refreshing, refetch: loadLocal };
 }

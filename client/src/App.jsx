@@ -7,7 +7,7 @@ import useStreak from './hooks/useStreak';
 
 export default function App() {
   const [view, setView] = useState('dashboard');
-  const { data, loading, error, refresh } = useStreak();
+  const { data, loading, error, refresh, refreshing, refetch } = useStreak();
 
   if (loading) {
     return (
@@ -15,18 +15,6 @@ export default function App() {
         <div className="loading-screen">
           <div className="flame-loader">🔥</div>
           <p>Loading your streak...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error && !data) {
-    return (
-      <div className="app">
-        <div className="error-screen">
-          <h2>Something went wrong</h2>
-          <p>{error}</p>
-          <button className="btn btn-primary" onClick={refresh}>Retry</button>
         </div>
       </div>
     );
@@ -61,23 +49,40 @@ export default function App() {
           >
             Settings
           </button>
+          {view === 'dashboard' && data?.hasSettings && (
+            <button
+              className={`nav-link refresh-btn ${refreshing ? 'spinning' : ''}`}
+              onClick={refresh}
+              disabled={refreshing}
+              title="Sync GitHub & LeetCode data"
+            >
+              {refreshing ? '⏳' : '🔄'} {refreshing ? 'Syncing...' : 'Sync'}
+            </button>
+          )}
         </div>
       </nav>
+
+      {error && (
+        <div className="error-banner">
+          <span>⚠️ {error}</span>
+          <button onClick={() => refetch()} className="error-dismiss">✕</button>
+        </div>
+      )}
 
       <main className="main">
         {view === 'dashboard' ? (
           <>
             <StreakCard
-              streak={data.currentStreak}
-              freezeCount={data.freezeCount}
-              todayContributed={data.todayContributed}
-              longestStreak={data.longestStreak}
+              streak={data?.currentStreak || 0}
+              freezeCount={data?.freezeCount || 0}
+              todayContributed={data?.todayContributed || false}
+              longestStreak={data?.longestStreak || 0}
             />
             <DailyGoals
-              githubDone={data.todayGithub > 0}
-              leetcodeDone={data.todayLeetcode > 0}
+              githubDone={(data?.todayGithub || 0) > 0}
+              leetcodeDone={(data?.todayLeetcode || 0) > 0}
             />
-            <CalendarGrid history={data.history || []} />
+            <CalendarGrid history={data?.history || []} />
           </>
         ) : (
           <SettingsForm onSaved={() => { setView('dashboard'); refresh(); }} />
