@@ -39,7 +39,12 @@ you're reading old context that mentions brutalism, it's superseded.
 client/src/
   hooks/        useAuth (magic link), useStreak (Supabase read/write)
   lib/          supabaseClient, leetcode (browser fetch), localImport (one-time migration),
-                utils.js (cn() — clsx+tailwind-merge, expected by the adapted components)
+                utils.js (cn() — clsx+tailwind-merge, expected by the adapted components),
+                push.js (Web Push subscribe/unsubscribe), platform.js (iOS/standalone detection,
+                shared by InstallPrompt and the push-notifications opt-in)
+  sw.js         custom service worker source (vite-plugin-pwa injectManifest strategy) —
+                push/notificationclick handlers live here; edit this, not a vite.config.js
+                workbox block, if the SW needs to do anything beyond app-shell precaching
   components/   LoginScreen, ImportPrompt, StreakCard, StreakFlame, FreezeTag,
                 DailyGoals, CalendarGrid, SettingsForm (username-only, no token field)
   components/ui/  GooeyNav, HourPicker, GitHubActivity, DeleteButton,

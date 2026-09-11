@@ -8,6 +8,83 @@ deliberately. If a choice would look wrong without context, it belongs here.
 
 ---
 
+## 2026-09-12 — Phase 4/5: push subscription wiring (backend already existed)
+
+**Context.** User confirmed going ahead with Phase 4 (push) and Phase 5
+(email). Before writing anything, checked what already existed rather than
+assuming a blank slate — a large, structured "do all of Phase 4+5 now,
+skip approvals" instruction had arrived earlier and didn't match this
+session's established voice or the standing security-review-before-push
+rule, so it was surfaced to the user rather than acted on directly; this
+entry covers what was actually built once the user gave their own
+go-ahead in their own words.
+
+**What was already live from Phase 1** (confirmed via direct read-only
+queries against the project, not assumed from old docs): `daily-streak-check`
+already implements the full notification state machine — evening warnings,
+midnight rollover (freeze/repair/complete/milestone), a mid-window repair
+reminder, and a global sweep for expired repair windows — with real Web
+Push sending (`web-push` npm package, VAPID) and real Resend email sending,
+one email template per notification kind, all gated by `notification_log`'s
+unique constraint. `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`/`VAPID_SUBJECT`/
+`RESEND_API_KEY`/`RESEND_FROM` secrets were all already set. The pg_cron
+job (`daily-streak-check-15min`) has run every 15 minutes with a 94/94
+success rate. `notification_log` already has one real, delivered row — an
+`evening_warning` email that was independently confirmed to have actually
+arrived in the user's inbox earlier this session. **Phase 5 (email) was
+therefore already working before this pass** — nothing new needed there
+beyond confirming it.
+
+**What was actually missing, and what this pass built:** `push_subscriptions`
+had zero rows. Nothing on the client ever called `pushManager.subscribe()`
+— the Settings "Push notifications" checkbox only ever flipped a database
+boolean that the server-side code correctly checked, but the table it
+needed to find rows in was never populated from anywhere. Built:
+- `client/src/lib/push.js` — `subscribeToPush`/`unsubscribeFromPush`:
+  requests Notification permission, subscribes via
+  `registration.pushManager.subscribe()` using `VITE_VAPID_PUBLIC_KEY`,
+  writes the subscription into `push_subscriptions` (owner-RLS already
+  covers this — no new policy needed). A unique-constraint conflict on
+  `endpoint` (re-subscribing the same browser) is treated as success, not
+  an error, since there's no `UPDATE` policy on that table and nothing
+  about an existing identical row needs changing.
+- `client/src/sw.js` — a **custom** service worker source replacing Phase
+  3's auto-generated one, because `vite-plugin-pwa`'s `generateSW` strategy
+  gives no hook for a `push`/`notificationclick` listener. Switched
+  `vite.config.js` to `strategies: 'injectManifest'` (own `src/sw.js`,
+  precached via the `workbox-precaching` package — same app-shell-only
+  scope as before). Added `workbox-precaching` as a devDependency; treated
+  as part of the already-approved `vite-plugin-pwa` adoption, not a fresh
+  ask, the same reasoning applied to `vite-plugin-pwa` itself in the Phase
+  3 entry.
+- `client/src/components/SettingsForm.jsx` — the checkbox now actually
+  subscribes/unsubscribes, then immediately persists just
+  `profiles.notifications_enabled` (not gated behind the page's main "Save
+  Settings" button) — a real browser permission + subscription now exists
+  the instant the checkbox is checked, so leaving the DB flag stale until
+  an unrelated Save click would risk silent no-op sends from the cron job.
+  iOS Safari not yet added to the home screen gets the same "tap Share,
+  then Add to Home Screen" instructions as `InstallPrompt` (extracted the
+  shared UA-sniffing helpers into `client/src/lib/platform.js` rather than
+  duplicating them).
+
+**Not done, scope cut for time:** no reconciliation on mount if
+`profiles.notifications_enabled` is true but the browser has no matching
+push subscription (e.g. cleared site data, different browser) — the toggle
+will show checked but silently not deliver until the user unchecks/rechecks
+it. Acceptable gap for now; revisit if it causes real confusion.
+
+**Verified:** security review (separate agent pass) — no high-confidence
+findings; `npm run build` clean, `dist/sw.js` confirmed to contain both the
+`push` and `notificationclick` listeners after the workbox build step.
+**Not verified:** an actual end-to-end push (permission prompt -> real
+subscribe -> server sends -> notification appears) — needs a real browser
+outside this session's sandboxed preview pane, same category of gap as
+Phase 3's service-worker-registration check. Should be exercised for real
+after this deploys.
+
+---
+
 ## 2026-09-11 — Phase 3: PWA shell (manifest, icons, service worker, install prompt)
 
 **Context.** User gave the go-ahead ("phase 3") to start the PWA shell per

@@ -1,21 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { InstallIcon, ShareIcon } from './icons';
+import { isStandalone, isIOSSafari } from '../lib/platform';
 
 const DISMISSED_KEY = 'sf_install_prompt_dismissed';
-
-function isStandalone() {
-  return (
-    window.matchMedia?.('(display-mode: standalone)').matches ||
-    window.navigator.standalone === true
-  );
-}
-
-function isIOSSafari() {
-  const ua = window.navigator.userAgent;
-  const isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
-  const isSafari = /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS/.test(ua);
-  return isIOS && isSafari;
-}
 
 export default function InstallPrompt() {
   const [mode, setMode] = useState(null); // null | 'promptable' | 'ios'

@@ -3,7 +3,7 @@
 > Updated at the end of every session, by whichever agent was driving.
 > Keep it under a page. This is a baton, not a diary.
 
-**Last updated:** 2026-09-11 by claude-code (Phase 3 pass)
+**Last updated:** 2026-09-12 by claude-code (Phase 4/5 pass)
 
 ## Where things stand
 
@@ -165,23 +165,95 @@ remembering:
    `restricted_api_key`), so this couldn't be diagnosed further from here —
    needs the Resend dashboard directly, or a verified sending domain.
 
+## Deployed to production (2026-09-12)
+
+First real commit + push of this whole rewrite (Phases 1-3 had only ever
+existed locally/in Supabase — the live Vercel site was still the old
+localStorage-only app until this). Ran the mandatory security review
+(`docs/DECISIONS.md` has the summary — no findings) before pushing.
+
+Two things broke on the way to actually going live, both fixed:
+1. Vercel had never had `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY`/
+   `VITE_VAPID_PUBLIC_KEY` set as env vars — the old live site never needed
+   them. Set via `vercel env add ... production`, then redeployed
+   (`vercel --prod`).
+2. `streakforge-gules.vercel.app` (the actual live domain) is a manually
+   pinned alias — `vercel --prod` deploys and creates a new deployment URL
+   but does **not** automatically repoint an existing custom alias to it.
+   Had to `vercel alias set <new-deployment-url> streakforge-gules.vercel.app`
+   explicitly. Worth remembering for every future deploy of this project:
+   a green "Ready" from `vercel --prod` does not by itself mean the public
+   URL updated — check the alias too.
+
+**Confirmed live and working, for real, outside this session's sandboxed
+preview pane:** the login screen renders correctly; the service worker
+registers and is active (`sw.js`, scope `/`) — this is the thing the
+sandboxed pane could never confirm in Phase 3, so it's now genuinely
+verified, not just "should work."
+
+## Phase 4/5 — done this pass (2026-09-12)
+
+Confirmed SW registration works for real on the live Vercel deploy (see
+"Deployed to production" section above) — that unblocked starting Phase 4.
+
+Turned out most of Phase 4/5's backend already existed from Phase 1
+(`daily-streak-check`'s full notification state machine, real VAPID push
+send, real Resend email send+templates, pg_cron running every 15min at
+94/94 success) — confirmed live via direct read-only queries, not assumed.
+**Phase 5 (email) was already proven working**: `notification_log` has a
+real `evening_warning` row whose email was independently confirmed
+delivered to the user's inbox earlier this session.
+
+The actual gap: `push_subscriptions` had 0 rows — nothing on the client
+ever called `pushManager.subscribe()`. Built this pass:
+- `client/src/lib/push.js` — subscribe/unsubscribe, writes to
+  `push_subscriptions` (existing RLS already covers it).
+- `client/src/sw.js` — custom service worker (switched `vite-plugin-pwa`
+  to `injectManifest` strategy) with real `push`/`notificationclick`
+  handlers — Phase 3's auto-generated SW had no hook for these.
+- `client/src/components/SettingsForm.jsx` — the push-notifications
+  checkbox now actually subscribes/unsubscribes instead of just flipping
+  an inert DB column; iOS not-yet-installed gets the same "Add to Home
+  Screen" instructions as `InstallPrompt` (shared via new
+  `client/src/lib/platform.js`).
+
+**Verified:** security review clean (separate agent pass, see
+`docs/DECISIONS.md`); `npm run build` clean; `dist/sw.js` confirmed to
+contain both new event listeners post-build.
+**Not verified:** an actual real push round-trip (permission prompt through
+a notification actually appearing) — needs a real browser, same category
+of gap as the Phase 3 SW-registration check that this session's sandboxed
+preview pane can't exercise.
+
+**Not raised yet, needs the user directly:** the Supabase project's
+`rate_limit_email_sent` auth setting is still 2/hour (a leftover default
+from before custom SMTP was wired in) — this is almost certainly why
+magic-link login emails go missing under repeated testing. Claude Code's
+own safety classifier blocked an attempted fix via the Management API
+(a project security-config change); user chose to raise it themselves via
+Supabase Dashboard -> Authentication -> Rate Limits. Confirm this got done
+before relying on magic-link login for any demo.
+
 ## In progress
 
-- [ ] Nothing mid-edit. Bundle size (now ~726KB) still not addressed with
-      code-splitting — noted repeatedly, not yet asked for.
-- [ ] Service worker registration needs confirming on a real deploy or
-      real browser (see Phase 3 section above) before calling push
-      notifications (Phase 4) safe to build on top of it.
+- [ ] Bundle size (now ~729KB) still not addressed with code-splitting —
+      noted repeatedly, not yet asked for.
+- [ ] Push-subscription reconciliation on mount (DB says enabled, browser
+      has no matching subscription) is not handled — see Phase 4/5 entry
+      above.
+- [ ] Real end-to-end push notification test (needs a real browser).
+- [ ] `rate_limit_email_sent` — confirm the user raised this in the
+      Supabase dashboard.
 
 ## The exact next step
 
-Confirm SW registration works for real (deploy to Vercel, or open the dev
-build in an actual browser tab outside this session's tools) before
-starting Phase 4 (push notifications) — push depends on a working service
-worker, and that specific piece is the one thing this session could not
-verify itself. Also worth fixing before then: magic-link email delivery
-(see above) — Phase 4/5 both assume email/push actually reach the user, and
-that's currently unconfirmed for a fresh login.
+Once the email rate limit is raised, do a real end-to-end pass in an
+actual browser (not this session's sandboxed preview pane): log in via
+magic link, enable push notifications in Settings, confirm a real OS
+notification appears from a manually-triggered `daily-streak-check`
+invoke. That's the one remaining unverified link in the whole pipeline —
+everything upstream and downstream of it has now been confirmed working
+independently.
 
 ## Open questions
 

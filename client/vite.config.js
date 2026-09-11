@@ -9,6 +9,17 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
+      // injectManifest (not generateSW) because Phase 4 needs a custom
+      // `push`/`notificationclick` handler in the service worker itself —
+      // generateSW's auto-built workbox SW has no hook point for that.
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.js',
+      injectManifest: {
+        // Same app-shell-only scope as the generateSW config it replaces —
+        // still deliberately not caching Supabase/GitHub/LeetCode responses.
+        globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
+      },
       registerType: 'autoUpdate',
       includeAssets: ['apple-touch-icon.png'],
       manifest: {
@@ -29,13 +40,6 @@ export default defineConfig({
             purpose: 'maskable',
           },
         ],
-      },
-      workbox: {
-        // App-shell caching only in this phase — no push-related SW logic yet,
-        // that's Phase 4. Runtime data (Supabase/GitHub/LeetCode) is
-        // deliberately NOT cached here: a stale streak number is worse than
-        // a network error, and Phase 4 will add push handling, not offline data.
-        globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
       },
     }),
   ],
