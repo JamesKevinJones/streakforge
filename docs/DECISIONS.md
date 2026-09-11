@@ -8,6 +8,56 @@ deliberately. If a choice would look wrong without context, it belongs here.
 
 ---
 
+## 2026-09-12 — Magic-link email: two real bugs found and fixed, one limitation accepted
+
+**Symptom.** Magic-link login silently never delivered, across multiple
+attempts over two days, despite the UI always reporting success.
+`supabase.auth.signInWithOtp` returns success client-side regardless of
+whether the email actually sends — it's not a delivery guarantee.
+
+**Bug 1 — `rate_limit_email_sent` left at Supabase's default of 2/hour.**
+This throttle applies to Supabase Auth's own mailer *before* it ever
+reaches the configured custom SMTP, independent of Resend's health. It was
+never raised when custom Resend SMTP was wired up in Phase 1 (that setup
+only configured *where* to send, not *how often* Supabase would even try).
+Diagnosed by reading the project's live auth config via the Supabase
+Management API (`GET /v1/projects/{ref}/config/auth`). Fixing this via the
+Management API (`PATCH .../config/auth`) was blocked twice by this
+environment's own safety classifier (a project security-config change) —
+correctly so; this is exactly the kind of setting a human should approve
+directly. User raised it to 30/hour via Dashboard -> Authentication ->
+Rate Limits.
+
+**Bug 2 — the SMTP password Supabase had on file for the Resend relay was
+wrong.** Confirmed via elimination: sent one email directly through
+Resend's REST API using the known-good key (`re_...`) — arrived
+immediately, proving Resend itself and the API key were both fine. Also
+confirmed indirectly: `daily-streak-check`'s own emails (which call
+Resend's REST API directly, not SMTP) had already been delivering
+correctly the whole time — a real `freeze_applied` email arrived in the
+user's inbox during this exact debugging session. That isolated the fault
+to the one path both healthy signals excluded: Supabase Auth's SMTP relay
+credential. An attempted API fix (`PATCH .../config/auth` with the correct
+`smtp_pass`) was blocked by the same safety classifier as Bug 1. User
+re-entered the password directly in Dashboard -> Authentication -> Emails
+-> SMTP Settings and saved. Magic-link email arrived on the next attempt.
+
+**Accepted limitation — sender domain.** The arriving email landed in
+spam, expected for `onboarding@resend.dev` (Resend's shared sandbox
+domain, used by many unrelated senders, so it carries no sender reputation
+of its own with any given receiving provider). The real fix is verifying
+a real owned domain in Resend and sending from that instead — offered to
+the user, declined for now (no domain on hand, and this is a personal
+portfolio project, not something serving real third-party users yet).
+Stopgap: the user marked the message "Not spam" in Gmail, which fixes
+delivery-to-inbox for that one address going forward but doesn't help any
+other future signee. **Revisit if this project ever needs to onboard
+someone other than the developer** — this directly closes the open
+question flagged back in Phase 1 about whether a verified sending domain
+would be needed before real multi-user delivery.
+
+---
+
 ## 2026-09-12 — Phase 4/5: push subscription wiring (backend already existed)
 
 **Context.** User confirmed going ahead with Phase 4 (push) and Phase 5

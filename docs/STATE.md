@@ -225,14 +225,26 @@ a notification actually appearing) — needs a real browser, same category
 of gap as the Phase 3 SW-registration check that this session's sandboxed
 preview pane can't exercise.
 
-**Not raised yet, needs the user directly:** the Supabase project's
-`rate_limit_email_sent` auth setting is still 2/hour (a leftover default
-from before custom SMTP was wired in) — this is almost certainly why
-magic-link login emails go missing under repeated testing. Claude Code's
-own safety classifier blocked an attempted fix via the Management API
-(a project security-config change); user chose to raise it themselves via
-Supabase Dashboard -> Authentication -> Rate Limits. Confirm this got done
-before relying on magic-link login for any demo.
+## Magic-link email — fixed (2026-09-12, same day)
+
+Was completely broken; now confirmed delivering. Two real bugs, both
+needed the user directly since both were project-security-config changes
+Claude Code's safety classifier correctly refused to make via API — full
+diagnosis in `docs/DECISIONS.md`:
+1. `rate_limit_email_sent` was Supabase's default 2/hour, never raised
+   when custom SMTP was wired up in Phase 1. User raised it to 30/hour.
+2. The SMTP password Supabase had on file for the Resend relay was wrong
+   (diagnosed by elimination: a direct Resend REST API call with the real
+   key worked instantly, and `daily-streak-check`'s Resend-REST-API emails
+   had been delivering the whole time — isolating the fault to
+   specifically the SMTP-relay credential). User re-entered it in
+   Dashboard -> Authentication -> Emails -> SMTP Settings.
+
+**Accepted, not fixed:** delivered mail lands in spam, because
+`onboarding@resend.dev` is Resend's shared sandbox domain with no sender
+reputation of its own. Real fix is a verified owned domain — offered,
+declined (no domain on hand, personal project). Revisit if this project
+ever needs real users other than the developer.
 
 ## In progress
 
@@ -242,24 +254,21 @@ before relying on magic-link login for any demo.
       has no matching subscription) is not handled — see Phase 4/5 entry
       above.
 - [ ] Real end-to-end push notification test (needs a real browser).
-- [ ] `rate_limit_email_sent` — confirm the user raised this in the
-      Supabase dashboard.
 
 ## The exact next step
 
-Once the email rate limit is raised, do a real end-to-end pass in an
-actual browser (not this session's sandboxed preview pane): log in via
-magic link, enable push notifications in Settings, confirm a real OS
-notification appears from a manually-triggered `daily-streak-check`
-invoke. That's the one remaining unverified link in the whole pipeline —
-everything upstream and downstream of it has now been confirmed working
-independently.
+Do a real end-to-end pass in an actual browser (not this session's
+sandboxed preview pane): log in via the now-working magic link, enable
+push notifications in Settings, confirm a real OS notification appears
+from a manually-triggered `daily-streak-check` invoke. That's the one
+remaining unverified link in the whole pipeline — everything upstream and
+downstream of it has now been confirmed working independently, including
+email delivery itself.
 
 ## Open questions
 
-- Resend sandbox sender only delivers to the Resend account's own
-  registered email — confirm whether a verified sending domain is needed
-  before real multi-user delivery (not just the developer's own testing).
+- Verified sending domain for Resend — see "Magic-link email" section
+  above; explicitly deferred, not forgotten.
 - Whether to add CI (GitHub Actions) for `supabase db push`/`functions
   deploy` — flagged in the plan as a Phase 1 decision point, not yet made.
 - Bundle size (685KB) — revisit with code-splitting if it ever matters for
