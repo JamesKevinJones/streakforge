@@ -1,7 +1,6 @@
 # Dependencies
 node_modules/
 client/node_modules/
-server/node_modules/
 
 # Build output
 client/dist/
@@ -12,10 +11,9 @@ client/dist/
 .env.production
 .env.*.local
 
-# SQLite database (contains user data - don't commit)
-server/streakforge.db
-*.db
-*.sqlite
+# Supabase CLI local state
+supabase/.temp/
+supabase/.branches/
 
 # OS files
 .DS_Store

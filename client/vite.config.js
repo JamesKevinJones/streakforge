@@ -1,11 +1,57 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
+import { VitePWA } from 'vite-plugin-pwa';
+import path from 'node:path';
 
 export default defineConfig({
-  plugins: [react()],
-  server: {
-    proxy: {
-      '/api': 'http://localhost:3001',
+  plugins: [
+    react(),
+    tailwindcss(),
+    VitePWA({
+      registerType: 'autoUpdate',
+      includeAssets: ['apple-touch-icon.png'],
+      manifest: {
+        name: 'StreakForge',
+        short_name: 'StreakForge',
+        description: 'Track your coding streak. Never lose it by accident.',
+        start_url: '/',
+        display: 'standalone',
+        background_color: '#0a0a0c',
+        theme_color: '#0a0a0c',
+        icons: [
+          { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
+          { src: 'icon-512.png', sizes: '512x512', type: 'image/png' },
+          {
+            src: 'maskable-icon-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
+          },
+        ],
+      },
+      workbox: {
+        // App-shell caching only in this phase — no push-related SW logic yet,
+        // that's Phase 4. Runtime data (Supabase/GitHub/LeetCode) is
+        // deliberately NOT cached here: a stale streak number is worse than
+        // a network error, and Phase 4 will add push handling, not offline data.
+        globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
+      },
+    }),
+  ],
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, 'src'),
     },
+  },
+  server: {
+    // Native fs-event watching crashes under some Windows/short-path dev
+    // setups (libuv assertion in fs-event.c); polling avoids it entirely.
+    watch: { usePolling: true },
+    // The dev launcher starts this from an 8.3 short path (KEVINC~1) to
+    // work around a separate path-with-spaces issue, which then makes
+    // Vite's fs allow-list check compare short-path vs realpath'd long-path
+    // forms of the same file and reject it. Local dev only; safe to relax.
+    fs: { strict: false },
   },
 });

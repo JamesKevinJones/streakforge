@@ -1,6 +1,17 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
+import gsap from 'gsap';
+import { prefersReducedMotion } from '../lib/motion';
+
+const INTENSITY_BG = [
+  'bg-white/5',
+  'bg-flame/25',
+  'bg-flame/45',
+  'bg-flame/70',
+  'bg-flame',
+];
 
 export default function CalendarGrid({ history }) {
+  const gridRef = useRef(null);
   const today = new Date();
   const days = [];
 
@@ -23,11 +34,7 @@ export default function CalendarGrid({ history }) {
     return 4;
   };
 
-  const isToday = (date) => {
-    const d = date.toISOString().split('T')[0];
-    return d === today.toISOString().split('T')[0];
-  };
-
+  const isToday = (date) => date.toISOString().split('T')[0] === today.toISOString().split('T')[0];
   const isSunday = (date) => date.getDay() === 0;
 
   const weeks = [];
@@ -41,49 +48,57 @@ export default function CalendarGrid({ history }) {
   }
   if (week.length > 0) weeks.push(week);
 
-  const monthLabels = [];
-  let lastMonth = -1;
-  for (const d of days) {
-    if (d.getMonth() !== lastMonth) {
-      monthLabels.push({ date: d, month: d.toLocaleString('default', { month: 'short' }) });
-      lastMonth = d.getMonth();
-    }
-  }
+  useEffect(() => {
+    if (!gridRef.current || prefersReducedMotion()) return;
+    const cells = gridRef.current.querySelectorAll('.calendar-cell');
+    gsap.fromTo(
+      cells,
+      { opacity: 0, y: 6 },
+      {
+        opacity: 1,
+        y: 0,
+        duration: 0.3,
+        ease: 'power2.out',
+        // "Stop at 12" per stagger-choreography: past 12 items, everything
+        // past that point reveals together instead of trailing forever.
+        stagger: (index) => Math.min(index, 12) * 0.03,
+      }
+    );
+  }, [history.length]);
 
   return (
-    <div className="calendar-grid">
-      <h2 className="calendar-title">Activity</h2>
+    <div className="glass overflow-x-auto rounded-3xl p-6">
+      <h2 className="mb-4 text-lg font-bold text-white">Activity</h2>
 
-      <div className="calendar-months">
-        {monthLabels.map((m, i) => (
-          <span key={i} className="calendar-month-label" style={{ gridColumn: Math.floor((days.indexOf(m.date) + 7) / 7) + 1 }}>
-            {m.month}
-          </span>
-        ))}
-      </div>
-
-      <div className="calendar-body">
-        <div className="calendar-day-labels">
+      <div className="flex min-w-[480px] gap-2">
+        <div className="flex flex-col gap-[3px] pt-0.5 font-mono text-[0.65rem] text-white/40">
           {['', 'Mon', '', 'Wed', '', 'Fri', ''].map((label, i) => (
-            <span key={i} className="calendar-day-label">{label}</span>
+            <span key={i} className="h-[14px] leading-[14px]">{label}</span>
           ))}
         </div>
 
-        <div className="calendar-weeks">
-          {weeks.map((week, wi) => (
-            <div key={wi} className="calendar-week">
-              {week.map((date, di) => {
+        <div className="flex gap-[3px]" ref={gridRef}>
+          {weeks.map((wk, wi) => (
+            <div key={wi} className="flex flex-col gap-[3px]">
+              {wk.map((date, di) => {
                 const dateStr = date.toISOString().split('T')[0];
                 const record = dateMap[dateStr];
                 const count = record ? (record.github_contributed || 0) + (record.leetcode_contributed || 0) : 0;
                 const intensity = getIntensity(count);
                 const frozen = record?.freeze_used > 0;
-                const todayFlag = isToday(date);
+                const status = record?.status;
+
+                let stateClass = INTENSITY_BG[intensity];
+                if (frozen) stateClass = 'bg-frost/60';
+                if (status === 'repair_window') stateClass = 'bg-ember/70';
+                if (status === 'broken') stateClass = 'bg-danger/40';
 
                 return (
                   <div
                     key={di}
-                    className={`calendar-cell intensity-${intensity} ${todayFlag ? 'today' : ''} ${frozen ? 'frozen' : ''}`}
+                    className={`calendar-cell h-[14px] w-[14px] rounded-[3px] border border-white/10 ${stateClass} ${
+                      isToday(date) ? 'ring-2 ring-frost' : ''
+                    }`}
                     title={`${dateStr}: ${count} contributions${frozen ? ' (freeze used)' : ''}`}
                   />
                 );
@@ -93,13 +108,11 @@ export default function CalendarGrid({ history }) {
         </div>
       </div>
 
-      <div className="calendar-legend">
+      <div className="mt-4 flex items-center gap-1.5 font-mono text-xs text-white/50">
         <span>Less</span>
-        <div className="legend-cell intensity-0" />
-        <div className="legend-cell intensity-1" />
-        <div className="legend-cell intensity-2" />
-        <div className="legend-cell intensity-3" />
-        <div className="legend-cell intensity-4" />
+        {INTENSITY_BG.map((bg, i) => (
+          <div key={i} className={`h-3 w-3 rounded-sm border border-white/10 ${bg}`} />
+        ))}
         <span>More</span>
       </div>
     </div>

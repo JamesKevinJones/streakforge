@@ -1,29 +1,52 @@
 import React, { useState, useEffect } from 'react';
-import { getSettings, saveSettings } from '../store';
+import { supabase } from '../lib/supabaseClient';
+import HourPicker from './ui/HourPicker';
+import DeleteButton from './ui/DeleteButton';
 
-export default function SettingsForm({ onSaved }) {
+export default function SettingsForm({ userId, onSaved }) {
+  const [deleteError, setDeleteError] = useState(null);
   const [form, setForm] = useState({
     github_username: '',
     leetcode_username: '',
-    github_token: '',
-    freeze_count: 2,
+    daily_goal_notify_hour: 21,
+    notifications_enabled: false,
+    email_reminders_enabled: false,
   });
   const [message, setMessage] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const s = getSettings();
-    setForm({
-      github_username: s.github_username || '',
-      leetcode_username: s.leetcode_username || '',
-      github_token: s.github_token || '',
-      freeze_count: s.freeze_count ?? 2,
-    });
-  }, []);
+    let cancelled = false;
+    supabase
+      .from('profiles')
+      .select('github_username, leetcode_username, daily_goal_notify_hour, notifications_enabled, email_reminders_enabled')
+      .eq('user_id', userId)
+      .single()
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (!error && data) {
+          setForm({
+            github_username: data.github_username || '',
+            leetcode_username: data.leetcode_username || '',
+            daily_goal_notify_hour: data.daily_goal_notify_hour ?? 21,
+            notifications_enabled: !!data.notifications_enabled,
+            email_reminders_enabled: !!data.email_reminders_enabled,
+          });
+        }
+        setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
 
   const handleChange = (e) => {
-    const { name, value, type } = e.target;
-    setForm(prev => ({ ...prev, [name]: type === 'number' ? Number(value) : value }));
+    const { name, value, type, checked } = e.target;
+    setForm((prev) => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value,
+    }));
   };
 
   const handleSubmit = async (e) => {
@@ -31,13 +54,20 @@ export default function SettingsForm({ onSaved }) {
     setSaving(true);
     setMessage(null);
     try {
-      saveSettings({
-        github_username: form.github_username.trim(),
-        leetcode_username: form.leetcode_username.trim(),
-        github_token: form.github_token.trim(),
-        freeze_count: Number(form.freeze_count) || 2,
-      });
-      setMessage({ type: 'success', text: '✅ Settings saved! Refreshing your data now...' });
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          github_username: form.github_username.trim(),
+          leetcode_username: form.leetcode_username.trim(),
+          daily_goal_notify_hour: form.daily_goal_notify_hour,
+          notifications_enabled: form.notifications_enabled,
+          email_reminders_enabled: form.email_reminders_enabled,
+          timezone,
+        })
+        .eq('user_id', userId);
+      if (error) throw error;
+      setMessage({ type: 'success', text: 'Settings saved! Syncing your data now...' });
       setTimeout(() => onSaved(), 500);
     } catch (err) {
       setMessage({ type: 'error', text: err.message });
@@ -46,27 +76,37 @@ export default function SettingsForm({ onSaved }) {
     }
   };
 
+  if (loading) return null;
+
   return (
-    <div className="settings-form">
-      <h2 className="settings-title">Account Settings</h2>
-      <p className="settings-subtitle">Connect your GitHub and LeetCode accounts to start tracking your streak.</p>
+    <div className="glass rounded-3xl p-6">
+      <h2 className="mb-1 text-xl font-bold text-white">Account Settings</h2>
+      <p className="mb-6 text-sm text-white/60">
+        Just your usernames — StreakForge checks your public activity server-side, so there's no token to manage.
+      </p>
 
       {message && (
-        <div className={`settings-message ${message.type}`}>
+        <div
+          className={`mb-5 rounded-2xl border p-3 text-sm font-semibold ${
+            message.type === 'success'
+              ? 'border-go/30 bg-go/10 text-emerald-200'
+              : 'border-danger/30 bg-danger/10 text-red-200'
+          }`}
+        >
           {message.text}
         </div>
       )}
 
-      <form onSubmit={handleSubmit}>
-        <div className="form-group">
-          <label className="form-label" htmlFor="github_username">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+        <div>
+          <label className="mb-1.5 block font-mono text-xs font-bold uppercase tracking-wide text-white/50" htmlFor="github_username">
             GitHub Username
           </label>
           <input
             id="github_username"
             name="github_username"
             type="text"
-            className="form-input"
+            className="glass w-full rounded-2xl px-4 py-3 text-white placeholder-white/30 outline-none focus:border-flame/50"
             value={form.github_username}
             onChange={handleChange}
             placeholder="e.g. octocat"
@@ -74,15 +114,15 @@ export default function SettingsForm({ onSaved }) {
           />
         </div>
 
-        <div className="form-group">
-          <label className="form-label" htmlFor="leetcode_username">
+        <div>
+          <label className="mb-1.5 block font-mono text-xs font-bold uppercase tracking-wide text-white/50" htmlFor="leetcode_username">
             LeetCode Username
           </label>
           <input
             id="leetcode_username"
             name="leetcode_username"
             type="text"
-            className="form-input"
+            className="glass w-full rounded-2xl px-4 py-3 text-white placeholder-white/30 outline-none focus:border-flame/50"
             value={form.leetcode_username}
             onChange={handleChange}
             placeholder="e.g. leetcoder"
@@ -90,63 +130,64 @@ export default function SettingsForm({ onSaved }) {
           />
         </div>
 
-        <div className="form-group">
-          <label className="form-label" htmlFor="github_token">
-            GitHub Personal Access Token
-          </label>
-          <input
-            id="github_token"
-            name="github_token"
-            type="password"
-            className="form-input"
-            value={form.github_token}
-            onChange={handleChange}
-            placeholder="ghp_xxxxxxxxxxxx"
+        <div>
+          <span className="mb-1.5 block font-mono text-xs font-bold uppercase tracking-wide text-white/50">
+            Evening reminder hour (your local time)
+          </span>
+          <HourPicker
+            value={form.daily_goal_notify_hour}
+            onChange={(hour) => setForm((prev) => ({ ...prev, daily_goal_notify_hour: hour }))}
           />
-          <p className="form-hint">
-            Required for GitHub contribution data.{' '}
-            <a
-              href="https://github.com/settings/tokens/new?scopes=read:user&description=StreakForge"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="form-hint-link"
-            >
-              Generate a token →
-            </a>
-            {' '}(only needs <code>read:user</code> scope). Stored locally in your browser.
-          </p>
+          <p className="mt-2 text-xs text-white/45">We'll nudge you around this hour if you haven't hit your goal yet.</p>
         </div>
 
-        <div className="form-group">
-          <label className="form-label" htmlFor="freeze_count">
-            Streak Freeze Credits
-          </label>
+        <label className="flex items-center gap-2.5 text-sm font-semibold text-white/85">
           <input
-            id="freeze_count"
-            name="freeze_count"
-            type="number"
-            min="0"
-            max="10"
-            className="form-input form-input-sm"
-            value={form.freeze_count}
+            type="checkbox"
+            name="notifications_enabled"
+            checked={form.notifications_enabled}
             onChange={handleChange}
+            className="size-5 accent-flame"
           />
-          <p className="form-hint">Number of days you can miss without breaking your streak.</p>
-        </div>
+          Push notifications
+        </label>
 
-        <div className="form-info-box">
-          <span className="form-info-icon">🔒</span>
-          <span>Your credentials are stored only in your browser's localStorage — never sent to any server.</span>
-        </div>
+        <label className="flex items-center gap-2.5 text-sm font-semibold text-white/85">
+          <input
+            type="checkbox"
+            name="email_reminders_enabled"
+            checked={form.email_reminders_enabled}
+            onChange={handleChange}
+            className="size-5 accent-flame"
+          />
+          Email reminders
+        </label>
 
-        <button
-          type="submit"
-          className="btn btn-primary btn-full"
-          disabled={saving}
-        >
+        <button type="submit" className="glass btn-glass btn-flame w-full" disabled={saving}>
           {saving ? 'Saving...' : 'Save Settings'}
         </button>
       </form>
+
+      <div className="mt-8 border-t border-white/10 pt-6">
+        <h3 className="mb-1 text-sm font-bold text-white/85">Danger zone</h3>
+        <p className="mb-3 text-xs text-white/50">
+          Permanently deletes your account, streak history, and settings. This can't be undone.
+        </p>
+        {deleteError && <p className="mb-3 text-xs font-semibold text-red-300">{deleteError}</p>}
+        <DeleteButton
+          label="Delete account"
+          confirmLabel="Delete account?"
+          onConfirm={async () => {
+            setDeleteError(null);
+            const { error } = await supabase.rpc('delete_own_account');
+            if (error) {
+              setDeleteError(error.message);
+              return;
+            }
+            await supabase.auth.signOut();
+          }}
+        />
+      </div>
     </div>
   );
 }
