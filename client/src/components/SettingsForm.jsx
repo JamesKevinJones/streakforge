@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import HourPicker from './ui/HourPicker';
 import DeleteButton from './ui/DeleteButton';
-import { subscribeToPush, unsubscribeFromPush, pushSupported } from '../lib/push';
+import { subscribeToPush, unsubscribeFromPush, pushSupported, getExistingPushSubscription } from '../lib/push';
 import { isIOSSafari, isStandalone } from '../lib/platform';
 import { ShareIcon } from './icons';
 
@@ -11,6 +11,7 @@ export default function SettingsForm({ userId, onSaved }) {
   const [pushError, setPushError] = useState(null);
   const [pushNeedsInstall, setPushNeedsInstall] = useState(false);
   const [pushBusy, setPushBusy] = useState(false);
+  const [pushWasReset, setPushWasReset] = useState(false);
   const [form, setForm] = useState({
     github_username: '',
     leetcode_username: '',
@@ -39,6 +40,23 @@ export default function SettingsForm({ userId, onSaved }) {
             notifications_enabled: !!data.notifications_enabled,
             email_reminders_enabled: !!data.email_reminders_enabled,
           });
+
+          // profiles.notifications_enabled can be true with no real browser
+          // subscription behind it — e.g. it was flipped on while an older
+          // build was live, before this reconciliation existed, or the
+          // subscription was lost (cleared site data, different browser).
+          // The server silently no-ops in that state (deliver() finds zero
+          // push_subscriptions rows and sends nothing) so the checkbox
+          // would otherwise lie. Correct both the displayed state and the
+          // DB flag rather than let it drift.
+          if (data.notifications_enabled) {
+            getExistingPushSubscription().then((sub) => {
+              if (cancelled || sub) return;
+              setForm((prev) => ({ ...prev, notifications_enabled: false }));
+              setPushWasReset(true);
+              supabase.from('profiles').update({ notifications_enabled: false }).eq('user_id', userId);
+            });
+          }
         }
         setLoading(false);
       });
@@ -58,6 +76,7 @@ export default function SettingsForm({ userId, onSaved }) {
   const handleNotificationsToggle = async (checked) => {
     setPushError(null);
     setPushNeedsInstall(false);
+    setPushWasReset(false);
 
     if (checked && isIOSSafari() && !isStandalone()) {
       setPushNeedsInstall(true);
@@ -192,6 +211,12 @@ export default function SettingsForm({ userId, onSaved }) {
             />
             Push notifications
           </label>
+          {pushWasReset && (
+            <p className="mt-2 text-xs text-white/60">
+              This was on, but your browser had no active subscription behind it, so nothing was
+              actually being sent — turned off. Toggle it back on to subscribe for real.
+            </p>
+          )}
           {pushNeedsInstall && (
             <p className="mt-2 flex items-center gap-2 text-xs text-white/60">
               <ShareIcon width={14} height={14} className="shrink-0 text-flame" />

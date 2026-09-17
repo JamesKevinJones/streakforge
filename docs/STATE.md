@@ -246,6 +246,25 @@ reputation of its own. Real fix is a verified owned domain — offered,
 declined (no domain on hand, personal project). Revisit if this project
 ever needs real users other than the developer.
 
+## Fixed 2026-09-17: live site was silently serving a 6-day-stale build
+
+Root cause: this project has Vercel's GitHub integration connected, and the
+prior session *also* ran manual `vercel --prod` right after each `git
+push` — two independent deployment triggers for the same commit. Vercel
+auto-aliases the production domain to whichever deployment **finishes**
+last, not whichever is newest by commit; an older commit's git-triggered
+build finished after a newer manual deploy and silently reclaimed the
+alias. No code was lost (git history was clean throughout) — purely a
+deployment-pointer bug, invisible unless you diff the live bundle hash
+against what you last confirmed.
+
+**Rule going forward: pick one deployment trigger per push.** Either let
+the GitHub integration deploy on its own and just wait for it, or deploy
+manually via `vercel --prod` — don't do both for the same commit. If a
+manual deploy is genuinely needed right after a push, verify the alias
+again a minute or two later (`vercel inspect <domain>` -> check the `id`/
+`created` timestamp) rather than trusting the alias-set output alone.
+
 ## In progress
 
 - [ ] Bundle size (now ~729KB) still not addressed with code-splitting —
