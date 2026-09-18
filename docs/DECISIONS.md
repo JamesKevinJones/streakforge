@@ -8,6 +8,54 @@ deliberately. If a choice would look wrong without context, it belongs here.
 
 ---
 
+## 2026-09-18 — Round 2: timezone drift, delete-account re-verified, real signup found broken for anyone but the developer
+
+Follow-on round after the four scope questions above.
+
+- **Timezone drift**: `profiles.timezone` only ever got written on a Settings
+  save, so travel across zones would silently go stale forever (the
+  evening-warning/midnight-rollover math would keep using the wrong zone
+  indefinitely). Fixed in `client/src/hooks/useAuth.js`: now silently
+  compares and self-corrects on every session-establishment (initial load
+  and auth state changes), not just an explicit Settings save.
+- **Delete-account verification, properly closed this time**: earlier
+  verification (Phase 4/5 pass) only ever exercised a *manually
+  fixture-inserted* `auth.users` row, never one created through the real
+  `handle_new_user` trigger. Re-verified for real: inserted a genuine
+  `auth.users` row via SQL (letting the real trigger fire), confirmed it
+  auto-created exactly one `profiles` row and one `streak_state` row, then
+  deleted the `auth.users` row directly (the same mechanism
+  `delete_own_account()` uses internally) and confirmed both dependent
+  rows cascaded away to zero. This is the real mechanism now genuinely
+  proven, not just the migration-level fixture test from before.
+- **Found in the process, more important than what was being tested**:
+  attempted a real second-signup test using a Gmail `+` alias
+  (`kj6384647+deletetest@gmail.com`) to simulate a distinct user without
+  needing a second real inbox. It failed — not from any app bug, but
+  because **Resend's sandbox mode (no verified sending domain) rejects any
+  recipient other than the exact registered account address, with an exact
+  string match that doesn't understand `+` aliasing**. Confirmed directly
+  against Resend's SMTP relay (`550 You can only send testing emails to
+  your own email address`), independent of Supabase entirely. When
+  Supabase's own confirmation-email send hits that same rejection, GoTrue
+  surfaces it to the client as a generic 500 `unexpected_failure` /
+  "Error sending confirmation email" — indistinguishable from a real server
+  bug unless you go looking at the SMTP layer directly, which is what this
+  session's earlier "just wait longer" instinct on the wrong bug would have
+  missed entirely.
+
+  **Concrete consequence**: real signup is not just "descoped by choice"
+  (Q1 above) — it is currently **impossible for anyone but the developer**.
+  Anyone else trying to create a StreakForge account today hits this exact
+  500 with no useful error message. Decided to leave this as-is
+  (matches the Q1 single-user-scope answer) rather than verify a domain
+  right now, but this is now written down as a known, understood
+  limitation rather than something that would look like an unexplained bug
+  report later. Revisit together with the Resend sandbox domain question
+  if this project's audience ever changes.
+
+---
+
 ## 2026-09-18 — Project-wide grilling: scope closed on four open questions
 
 Ran a `/grill-with-docs`-style interview against the whole project rather

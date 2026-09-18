@@ -3,7 +3,7 @@
 > Updated at the end of every session, by whichever agent was driving.
 > Keep it under a page. This is a baton, not a diary.
 
-**Last updated:** 2026-09-12 by claude-code (Phase 4/5 pass)
+**Last updated:** 2026-09-18 by claude-code (project-wide grilling pass)
 
 ## Where things stand
 
@@ -265,33 +265,48 @@ manual deploy is genuinely needed right after a push, verify the alias
 again a minute or two later (`vercel inspect <domain>` -> check the `id`/
 `created` timestamp) rather than trusting the alias-set output alone.
 
-## In progress
+## 2026-09-18 — project-wide grilling session, both rounds
 
-- [ ] Bundle size (now ~729KB) still not addressed with code-splitting —
-      noted repeatedly, not yet asked for.
-- [ ] Push-subscription reconciliation on mount (DB says enabled, browser
-      has no matching subscription) is not handled — see Phase 4/5 entry
-      above.
-- [ ] Real end-to-end push notification test (needs a real browser).
+Ran `/grill-with-docs` against the whole project (not a single feature) to
+close out items that had sat open since Phase 1. Full reasoning for each in
+`docs/DECISIONS.md`'s two 2026-09-18 entries. Resolved:
+
+- **Scope, permanently**: single-user/portfolio project, not multi-tenant.
+  Retroactively confirms the app-level GitHub token and Resend sandbox
+  domain were correctly scoped decisions, not shortcuts to fix later.
+- **NotificationBell, FolderComponent**: dropped for good. **GravityLetters**:
+  kept on the shelf (possible milestone-burst fit later).
+- **No CI for Supabase deploys**: decided against, not deferred.
+- **Bundle size (~729KB)**: accepted, not neglected.
+- **Timezone drift**: fixed — `useAuth.js` now silently re-syncs
+  `profiles.timezone` on every login instead of only on a Settings save.
+- **Delete-account cascade**: re-verified against a real trigger-created
+  user this time (not just a manual fixture) — confirmed clean.
+- **Real signup is currently broken for anyone but the developer** —
+  found while testing the above, unrelated to what was being tested.
+  Resend's sandbox mode rejects any recipient other than the exact
+  registered account email (even a Gmail `+` alias to the same inbox),
+  and Supabase surfaces that rejection as a generic 500 with no useful
+  message. Decided to leave as-is (consistent with the single-user scope
+  answer) rather than verify a domain now — written down so it reads as a
+  known limitation, not a mystery bug, if it's ever hit again.
+- **Q3 (is this the finish line) was asked but not yet answered** — the
+  user hasn't said whether there's a Phase 6 in mind. Still open.
+
+**Not done in this pass, explicitly still open:**
+- [ ] Whether there's a Phase 6 (marketing/landing page, onboarding
+      polish, anything else) or "done" means what's built now.
+- [ ] Real end-to-end push notification test — needs the user's own real
+      browser to click "Allow" on the permission prompt (automated/headless
+      browsers correctly auto-deny it; this can't be tested from tooling).
 
 ## The exact next step
 
-Do a real end-to-end pass in an actual browser (not this session's
-sandboxed preview pane): log in via the now-working magic link, enable
-push notifications in Settings, confirm a real OS notification appears
-from a manually-triggered `daily-streak-check` invoke. That's the one
-remaining unverified link in the whole pipeline — everything upstream and
-downstream of it has now been confirmed working independently, including
-email delivery itself.
-
-## Open questions
-
-- Verified sending domain for Resend — see "Magic-link email" section
-  above; explicitly deferred, not forgotten.
-- Whether to add CI (GitHub Actions) for `supabase db push`/`functions
-  deploy` — flagged in the plan as a Phase 1 decision point, not yet made.
-- Bundle size (685KB) — revisit with code-splitting if it ever matters for
-  this project; not raised as a concern yet.
+Get the user's answer on Q3 (finish line vs. more scope). Separately,
+whenever the user is at their own device: enable push notifications in
+Settings for real and confirm an actual OS notification appears — that's
+the one remaining unverified link in the whole pipeline, and it needs a
+human, not more debugging.
 
 ## Known traps
 
