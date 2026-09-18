@@ -8,6 +8,33 @@ deliberately. If a choice would look wrong without context, it belongs here.
 
 ---
 
+## 2026-09-18 — Project-wide grilling: scope closed on four open questions
+
+Ran a `/grill-with-docs`-style interview against the whole project rather
+than a single feature, to close out standing open items instead of letting
+them sit unresolved indefinitely (several had been flagged since Phase 1).
+
+- **Who this is for, permanently**: single-user/portfolio-scoped, not a
+  multi-tenant product. This retroactively confirms every decision already
+  built on that assumption (one shared app-level GitHub token instead of
+  per-user OAuth, Resend's shared sandbox sending domain instead of a
+  verified owned domain) was correctly scoped, not a shortcut to revisit.
+  Don't re-litigate these unless this answer itself changes.
+- **NotificationBell and FolderComponent** (2 of the original 7 pasted
+  rare-ui-style components): dropped for good — nothing in this app's
+  shape (no notification inbox, no file browser) will ever need them.
+  **GravityLetters** stays on the shelf, not dropped — plausible future fit
+  for the milestone-burst moment.
+- **No CI for Supabase** (`db push`/`functions deploy` via GitHub Actions):
+  explicitly decided against, not merely deferred. Single-maintainer
+  project, infrequent backend changes — the automation wouldn't pay for
+  itself. Revisit only if deploy frequency or contributor count changes.
+- **Bundle size (~729KB)**: explicitly accepted, not neglected. Not a
+  high-traffic app where load time is under scrutiny; code-splitting now
+  means finding chunk boundaries in still-actively-changing code.
+
+---
+
 ## 2026-09-12 — Magic-link email: two real bugs found and fixed, one limitation accepted
 
 **Symptom.** Magic-link login silently never delivered, across multiple
