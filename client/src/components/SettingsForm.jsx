@@ -6,6 +6,16 @@ import { subscribeToPush, unsubscribeFromPush, pushSupported, getExistingPushSub
 import { isIOSSafari, isStandalone } from '../lib/platform';
 import { ShareIcon } from './icons';
 
+// Pasting a profile URL instead of a bare username is an easy mistake (it's
+// what's in the browser's address bar) and fails silently: the LeetCode
+// GraphQL query just returns no matched user, so "done today" always reads
+// false with no error anywhere. Strip a leetcode.com URL down to the handle.
+function normalizeLeetCodeUsername(value) {
+  const trimmed = value.trim();
+  const match = trimmed.match(/leetcode\.com\/u\/([^/?#]+)/i);
+  return match ? match[1] : trimmed;
+}
+
 export default function SettingsForm({ userId, onSaved }) {
   const [deleteError, setDeleteError] = useState(null);
   const [pushError, setPushError] = useState(null);
@@ -117,7 +127,7 @@ export default function SettingsForm({ userId, onSaved }) {
         .from('profiles')
         .update({
           github_username: form.github_username.trim(),
-          leetcode_username: form.leetcode_username.trim(),
+          leetcode_username: normalizeLeetCodeUsername(form.leetcode_username),
           daily_goal_notify_hour: form.daily_goal_notify_hour,
           notifications_enabled: form.notifications_enabled,
           email_reminders_enabled: form.email_reminders_enabled,
