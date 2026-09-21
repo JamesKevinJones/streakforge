@@ -1,0 +1,1 @@
+StreakForge tracks your real GitHub + LeetCode streak and actually backs up "don't worry, we've got you" — auto freezes, a real 24h repair window, push reminders before it's ever at risk. 🔥

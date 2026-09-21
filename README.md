@@ -2,16 +2,20 @@
 
 > Track your coding consistency across GitHub and LeetCode — never lose the chain by accident.
 
-StreakForge pulls your contribution data from GitHub and LeetCode, maintains a daily streak counter, and protects it with **freeze credits** and a **24-hour repair window** so a missed day, timezone edge case, or one bad night doesn't wipe out real progress. It's an installable mobile web app with push notifications and email reminders — see `AGENTS.md` for the full architecture.
+StreakForge pulls your contribution data from GitHub and LeetCode, maintains a daily streak counter, and protects it with **freeze credits** and a **24-hour repair window** so a missed day, timezone edge case, or one bad night doesn't wipe out real progress. It's a dark liquid-glass UI, installable as a mobile PWA, with push notifications and email reminders — see `AGENTS.md` for the full architecture.
+
+[![Watch the demo](brag-output/brag.jpg)](brag-output/brag.mp4)
 
 ## Features
 
 - 🔥 **Live Streak Counter** — tracks consecutive days you've coded, synced across devices via your account
 - 🧊 **Freeze Credits** — auto-applied on a missed day (earns more at milestones)
 - 🩹 **Streak Repair** — out of freezes? a 24h grace window plus a monthly repair credit before it actually resets
-- 📅 **Activity Calendar** — 70-day heatmap of GitHub & LeetCode contributions
+- 📅 **Activity Calendar** — full-year GitHub-style contribution heatmap, themed to the app
 - 🎯 **Daily Goals** — visual checkmark when you've hit both platforms today
+- 🪟 **Liquid-glass UI** — frosted translucent panels, installable as a mobile PWA
 - 🔔 **Push notifications + email reminders** — nudges you before your streak is at risk
+- 😌 **Stress buster** — a "need a breather?" card that lets you throw a few emoji at the screen
 - ⚙️ **Zero-friction setup** — just your GitHub and LeetCode usernames, no token to manage
 
 ## Tech Stack

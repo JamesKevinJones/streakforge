@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="en" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>StreakForge — Never lose the chain by accident</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+
+      @font-face {
+        font-family: 'Manrope';
+        src: url('assets/fonts/Manrope-Variable.woff2') format('woff2');
+        font-weight: 200 800;
+        font-style: normal;
+      }
+
+      html, body {
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #0a0a0c;
+      }
+
+      #root {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        font-family: 'Manrope', ui-sans-serif, sans-serif;
+        color: rgba(255, 255, 255, 0.92);
+      }
+
+      .clip { position: absolute; inset: 0; }
+      .transparent { background: transparent; }
+
+      #bg {
+        position: absolute;
+        inset: 0;
+        background: #0a0a0c;
+        background-image:
+          radial-gradient(60% 50% at 15% 0%, rgba(255, 91, 31, 0.16), transparent 60%),
+          radial-gradient(50% 40% at 100% 20%, rgba(64, 156, 255, 0.10), transparent 60%);
+      }
+
+      .scene-inner {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .glass-panel {
+        background: rgba(255, 255, 255, 0.06);
+        backdrop-filter: blur(20px) saturate(140%);
+        -webkit-backdrop-filter: blur(20px) saturate(140%);
+        border: 1px solid rgba(255, 255, 255, 0.10);
+        box-shadow:
+          0 1px 0 rgba(255, 255, 255, 0.12) inset,
+          0 20px 40px -20px rgba(0, 0, 0, 0.6);
+      }
+
+      .mono-label {
+        font-family: 'JetBrains Mono', ui-monospace, monospace;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+
+      .btn-flame-video {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 9999px;
+        padding: 16px 34px;
+        font-family: 'Manrope', sans-serif;
+        font-weight: 700;
+        font-size: 22px;
+        color: white;
+        background: linear-gradient(180deg, #ff7a3d, #ff5b1f);
+        box-shadow:
+          0 1px 0 rgba(255, 255, 255, 0.35) inset,
+          0 8px 24px -8px rgba(255, 91, 31, 0.55);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+      }
+
+      .flame-circle {
+        position: relative;
+        border-radius: 9999px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+
+      .flame-aura-el {
+        position: absolute;
+        inset: -40%;
+        border-radius: 9999px;
+        filter: blur(26px);
+        background: radial-gradient(circle, #ffb800 0%, transparent 70%);
+        pointer-events: none;
+      }
+
+      .grid-cell {
+        position: relative;
+        border-radius: 3px;
+        background: rgba(255, 255, 255, 0.08);
+        flex-shrink: 0;
+      }
+      .grid-cell-fill {
+        position: absolute;
+        inset: 0;
+        border-radius: 3px;
+        background: #ff5b1f;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Shared defs: single hero flame shape + gradient, reused via <use> everywhere -->
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+      <defs>
+        <linearGradient id="flameGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="#ffb800" />
+          <stop offset="100%" stop-color="#ff5b1f" />
+        </linearGradient>
+        <symbol id="flame-shape" viewBox="0 0 100 100">
+          <path d="M50 4 C66 26 82 46 78 66 C82 84 68 98 50 98 C32 98 18 84 22 66 C18 46 34 26 50 4 Z" />
+        </symbol>
+      </defs>
+    </svg>
+
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="19"
+      data-width="1920"
+      data-height="1080"
+    >
+      <div id="bg"></div>
+
+      <!-- ================= SCENE 1 — Ignite (0 - 2.85s) ================= -->
+      <section id="scene1" class="clip transparent" data-start="0" data-duration="2.85" data-track-index="1">
+        <div class="scene-inner" id="s1-inner">
+          <div style="position: relative; width: 280px; height: 280px; display: flex; align-items: center; justify-content: center;">
+            <div id="s1-aura" class="flame-aura-el" style="opacity: 0;"></div>
+            <svg id="s1-flame" viewBox="0 0 100 100" width="220" height="220" style="display: block; position: relative; z-index: 1;">
+              <use href="#flame-shape" fill="url(#flameGrad)" />
+            </svg>
+          </div>
+          <div id="s1-text" class="mono-label" style="position: absolute; left: 50%; margin-left: 90px; top: 50%; transform: translateY(-50%); font-family: 'Manrope', sans-serif; text-transform: none; letter-spacing: 0; font-weight: 500; font-size: 42px; color: rgba(255, 255, 255, 0.85); opacity: 0;">
+            Missed a day?
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= SCENE 2 — The streak, live (2.5 - 6.85s) ================= -->
+      <section id="scene2" class="clip transparent" data-start="2.5" data-duration="4.35" data-track-index="1">
+        <div class="scene-inner" id="s2-inner" style="opacity: 0;">
+          <div id="s2-panel" class="glass-panel" style="width: 940px; border-radius: 40px; padding: 56px; display: flex; align-items: center; gap: 56px;">
+            <div class="flame-circle" style="width: 200px; height: 200px;">
+              <div class="flame-aura-el" style="opacity: 0.55; filter: blur(22px);"></div>
+              <svg viewBox="0 0 100 100" width="110" height="110" style="display: block; position: relative; z-index: 1;">
+                <use href="#flame-shape" fill="url(#flameGrad)" />
+              </svg>
+            </div>
+            <div style="flex: 1; min-width: 0;">
+              <div style="font-family: 'Manrope', sans-serif; font-weight: 700; font-size: 34px; color: rgba(255, 255, 255, 0.92); margin-bottom: 18px;">
+                You're on fire!
+              </div>
+              <div style="display: flex; align-items: baseline; gap: 18px; margin-bottom: 26px;">
+                <span id="streak-number" style="font-family: 'Manrope', sans-serif; font-weight: 800; font-size: 132px; line-height: 1; color: #ff5b1f; font-variant-numeric: tabular-nums;">0</span>
+                <span class="mono-label" style="font-size: 22px; font-weight: 700; color: rgba(255, 255, 255, 0.5);">day streak</span>
+              </div>
+              <div id="s2-stats" style="display: flex; gap: 44px; align-items: center; opacity: 0;">
+                <div>
+                  <div style="font-family: 'Manrope', sans-serif; font-weight: 800; font-size: 36px; color: white;">62</div>
+                  <div class="mono-label" style="font-size: 15px; color: rgba(255, 255, 255, 0.62);">Longest streak</div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px; padding: 12px 20px; border-radius: 9999px; background: rgba(64, 156, 255, 0.12); border: 1px solid rgba(64, 156, 255, 0.3);">
+                  <span style="font-size: 20px;">&#10052;&#65039;</span>
+                  <span class="mono-label" style="font-size: 16px; font-weight: 700; color: #409cff;">2 freezes left</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= SCENE 3 — The catch (6.5 - 11.85s) ================= -->
+      <section id="scene3" class="clip transparent" data-start="6.5" data-duration="5.35" data-track-index="1">
+        <div class="scene-inner" id="s3-inner" style="opacity: 0;">
+          <div id="s3-readout" class="glass-panel mono-label" style="position: absolute; left: 96px; top: 96px; display: flex; align-items: center; gap: 14px; padding: 16px 26px; border-radius: 9999px; font-size: 18px; font-weight: 700; color: rgba(255, 255, 255, 0.7); opacity: 0;">
+            <svg viewBox="0 0 100 100" width="28" height="28" style="display: block;"><use href="#flame-shape" fill="url(#flameGrad)" /></svg>
+            <span style="color: #ff5b1f; font-size: 22px;">47</span>
+            <span>day streak</span>
+          </div>
+
+          <div id="s3-banner" class="glass-panel" style="position: relative; width: 1120px; min-height: 360px; border-radius: 36px; overflow: hidden; opacity: 0;">
+            <div id="banner-face-a" style="position: absolute; inset: 0; padding: 56px 64px; display: flex; flex-direction: column; justify-content: center; background: radial-gradient(60% 80% at 100% 0%, rgba(64, 156, 255, 0.10), transparent 70%);">
+              <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px;">
+                <span style="font-size: 34px;">&#10052;&#65039;</span>
+                <span class="mono-label" style="font-size: 20px; font-weight: 700; color: #409cff;">Repair window &middot; 24h left</span>
+              </div>
+              <div style="font-family: 'Manrope', sans-serif; font-weight: 600; font-size: 33px; line-height: 1.4; color: rgba(255, 255, 255, 0.92); margin-bottom: 32px; max-width: 900px;">
+                Your streak is in a 24h repair window. Log a real contribution, or spend one of your repair credits to save it.
+              </div>
+              <div><span class="btn-flame-video">Use Streak Repair</span></div>
+            </div>
+            <div id="banner-face-b" style="position: absolute; inset: 0; padding: 56px 64px; display: flex; flex-direction: column; justify-content: center; background: radial-gradient(60% 80% at 100% 0%, rgba(52, 211, 153, 0.14), transparent 70%); opacity: 0;">
+              <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px;">
+                <span style="font-size: 34px;">&#10024;</span>
+                <span class="mono-label" style="font-size: 20px; font-weight: 700; color: #34d399;">Frozen &middot; streak saved</span>
+              </div>
+              <div style="font-family: 'Manrope', sans-serif; font-weight: 600; font-size: 33px; line-height: 1.4; color: rgba(255, 255, 255, 0.92); max-width: 900px;">
+                No worries — a freeze covered today automatically. Your streak holds at <span style="color: #34d399; font-weight: 800;">47</span>.
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= SCENE 4 — Real activity, not a mockup (11.5 - 16.35s) ================= -->
+      <section id="scene4" class="clip transparent" data-start="11.5" data-duration="4.85" data-track-index="1">
+        <div class="scene-inner" id="s4-inner" style="opacity: 0;">
+          <div id="s4-panel" class="glass-panel" style="width: 940px; border-radius: 36px; padding: 52px 60px;">
+            <div class="mono-label" style="font-size: 18px; color: rgba(255, 255, 255, 0.5); margin-bottom: 22px;">Top contributions in:</div>
+            <div id="grid-root" style="display: flex; gap: 6px; justify-content: center;"></div>
+            <div id="s4-caption" style="margin-top: 30px; font-family: 'Manrope', sans-serif; font-weight: 600; font-size: 28px; color: rgba(255, 255, 255, 0.9); text-align: center; opacity: 0;">
+              216 contributions in 2026
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= SCENE 5 — The release (16.0 - 19.0s) ================= -->
+      <section id="scene5" class="clip transparent" data-start="16.0" data-duration="3.0" data-track-index="1">
+        <div class="scene-inner" id="s5-inner" style="opacity: 0;">
+          <div id="s5-card" class="glass-panel" style="position: relative; width: 840px; padding: 56px 64px; border-radius: 36px; text-align: center;">
+            <div class="mono-label" style="font-size: 17px; color: #409cff; margin-bottom: 18px;">Stress buster</div>
+            <div style="font-family: 'Manrope', sans-serif; font-weight: 600; font-size: 33px; line-height: 1.45; color: rgba(255, 255, 255, 0.92); margin-bottom: 36px;">
+              Need a breather? Throw a few feelings at the screen. No judgment.
+            </div>
+            <div id="s5-trigger" class="glass-panel" data-layout-allow-overlap="true" style="width: 88px; height: 88px; border-radius: 9999px; display: flex; align-items: center; justify-content: center; margin: 0 auto; font-size: 38px;">
+              &#128578;
+            </div>
+            <div id="s5-burst-root" style="position: absolute; left: 50%; bottom: 150px; width: 1px; height: 1px;"></div>
+          </div>
+
+          <div id="s5-wordmark" style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0; z-index: 2;">
+            <svg viewBox="0 0 100 100" width="100" height="100" style="display: block; margin-bottom: 22px;">
+              <use href="#flame-shape" fill="url(#flameGrad)" />
+            </svg>
+            <div style="font-family: 'Manrope', sans-serif; font-weight: 800; font-size: 66px; color: rgba(255, 255, 255, 0.96); letter-spacing: -0.02em;">
+              StreakForge
+            </div>
+            <div style="font-family: 'Manrope', sans-serif; font-weight: 500; font-size: 27px; color: rgba(255, 255, 255, 0.7); margin-top: 16px;">
+              Never lose the chain by accident.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= AUDIO ================= -->
+      <audio
+        id="music-bed"
+        src="assets/music/happy-beats-business-moves-vol-9-by-ende-dot-app.mp3"
+        data-start="0"
+        data-duration="19"
+        data-track-index="10"
+        data-automation='{"version":1,"lanes":[{"target":"volume","points":[{"t":0,"v":0},{"t":0.3,"v":0.30},{"t":2.5,"v":0.30},{"t":6.5,"v":0.34},{"t":7.3,"v":0.24},{"t":8.4405,"v":0.38},{"t":11.5,"v":0.35},{"t":16.0,"v":0.35},{"t":17.5,"v":0.22},{"t":19.0,"v":0}]}]}'
+      ></audio>
+
+      <audio id="sfx-ignite" src="assets/sfx/impact/impactSoft_medium_001.ogg" data-start="0.12" data-track-index="20" data-volume="0.65"></audio>
+      <audio id="sfx-banner-drop" src="assets/sfx/interface/drop_001.ogg" data-start="6.5" data-track-index="21" data-volume="0.5"></audio>
+      <audio id="sfx-repair-flip" src="assets/sfx/impact/impactSoft_medium_001.ogg" data-start="8.4405" data-track-index="22" data-volume="0.75"></audio>
+
+      <audio id="sfx-tick-0" src="assets/sfx/interface/drop_002.ogg" data-start="11.60" data-track-index="23" data-volume="0.35"></audio>
+      <audio id="sfx-tick-1" src="assets/sfx/interface/drop_002.ogg" data-start="12.65" data-track-index="26" data-volume="0.35"></audio>
+      <audio id="sfx-tick-2" src="assets/sfx/interface/drop_002.ogg" data-start="13.70" data-track-index="27" data-volume="0.35"></audio>
+      <audio id="sfx-tick-3" src="assets/sfx/interface/drop_002.ogg" data-start="14.76" data-track-index="28" data-volume="0.35"></audio>
+      <audio id="sfx-tick-4" src="assets/sfx/interface/drop_002.ogg" data-start="15.81" data-track-index="29" data-volume="0.35"></audio>
+
+      <audio id="sfx-pop-0" src="assets/sfx/interface/drop_002.ogg" data-start="16.60" data-track-index="30" data-volume="0.3"></audio>
+      <audio id="sfx-pop-1" src="assets/sfx/interface/drop_002.ogg" data-start="16.75" data-track-index="31" data-volume="0.3"></audio>
+      <audio id="sfx-pop-2" src="assets/sfx/interface/drop_002.ogg" data-start="16.90" data-track-index="32" data-volume="0.3"></audio>
+      <audio id="sfx-pop-3" src="assets/sfx/interface/drop_002.ogg" data-start="17.05" data-track-index="33" data-volume="0.3"></audio>
+      <audio id="sfx-pop-4" src="assets/sfx/interface/drop_002.ogg" data-start="17.20" data-track-index="34" data-volume="0.3"></audio>
+
+      <audio id="sfx-wordmark-chime" src="assets/sfx/impact/impactBell_heavy_000.ogg" data-start="17.9105" data-track-index="25" data-volume="0.55"></audio>
+    </div>
+
+    <script>
+      // ---- Build the GitHub-style heatmap grid (deterministic, authored once) ----
+      // 25 columns x 7 rows, grouped into 5 column-groups of 5 columns each.
+      // Levels hand-generated offline (seeded, not render-time random) to look
+      // like a real, slightly-busier-toward-recent-weeks contribution history.
+      var LEVELS = [0,0,2,1,0,0,1,1,1,1,1,0,1,0,0,2,1,3,1,0,0,0,1,0,1,2,2,0,0,1,0,2,0,2,0,1,1,1,0,0,0,0,0,1,0,1,1,1,2,3,2,0,0,0,0,0,0,0,0,0,0,2,1,1,1,1,0,0,0,3,0,0,1,2,2,2,3,0,3,2,1,1,2,3,3,2,2,1,1,0,1,2,3,1,2,0,0,1,3,3,0,0,1,2,2,2,1,2,1,1,2,0,2,0,0,1,2,2,2,0,2,1,3,1,1,1,3,0,1,1,2,4,1,3,1,1,4,3,1,0,2,0,1,3,2,2,0,2,1,0,3,0,3,1,4,0,1,1,2,1,3,1,4,4,1,0,3,3,3,2,2,3,0,4,4];
+      var LEVEL_OPACITY = { 0: 0, 1: 0.3, 2: 0.52, 3: 0.76, 4: 1 };
+      var COLS = 25, ROWS = 7, CELL = 24, GAP = 6;
+      var gridRoot = document.getElementById('grid-root');
+      var columnEls = [];
+
+      for (var c = 0; c < COLS; c++) {
+        var col = document.createElement('div');
+        col.style.display = 'flex';
+        col.style.flexDirection = 'column';
+        col.style.gap = GAP + 'px';
+        var cellsInCol = [];
+        for (var r = 0; r < ROWS; r++) {
+          var idx = c * ROWS + r;
+          var cell = document.createElement('div');
+          cell.className = 'grid-cell';
+          cell.style.width = CELL + 'px';
+          cell.style.height = CELL + 'px';
+          cell.style.opacity = '0';
+          var fill = document.createElement('div');
+          fill.className = 'grid-cell-fill';
+          fill.style.opacity = String(LEVEL_OPACITY[LEVELS[idx]]);
+          cell.appendChild(fill);
+          col.appendChild(cell);
+          cellsInCol.push(cell);
+        }
+        gridRoot.appendChild(col);
+        columnEls.push(cellsInCol);
+      }
+
+      // ---- Audio-reactive hook: bass band (bands[0]) from hook-bands.json, ----
+      // sampled every 6 frames (0.2s) across the first 3.0s. Drives the flame
+      // aura's opacity + scale in Scene 1 only, after the ignite settles.
+      var BASS_SAMPLES = [0.369, 0.217, 0.223, 0.122, 0.167, 0.135, 0.112, 0.147, 0.347, 0.146, 0.155, 0.019, 0.011, 0.044, 0.005];
+
+      var tl = gsap.timeline({ paused: true });
+
+      // ===================== SCENE 1 — Ignite =====================
+      tl.fromTo('#s1-aura', { opacity: 0, scale: 0.35 }, { opacity: 0.6, scale: 1, duration: 0.4, ease: 'power2.out' }, 0);
+      tl.fromTo('#s1-flame', { opacity: 0, scale: 0.15 }, { opacity: 1, scale: 1, duration: 0.5, ease: 'back.out(1.6)', transformOrigin: '50% 50%' }, 0.12);
+      tl.fromTo('#s1-text', { opacity: 0, x: 18 }, { opacity: 1, x: 0, duration: 0.4, ease: 'power2.out' }, 0.75);
+
+      // Audio-reactive aura breathing, driven by real bass-band samples (indices 3..14 => t=0.6..2.8),
+      // applied from 0.7s onward (after the ignite tween has settled).
+      for (var i = 3; i < BASS_SAMPLES.length; i++) {
+        var bandVal = BASS_SAMPLES[i];
+        var atTime = 0.7 + (i - 3) * 0.2;
+        var targetOpacity = Math.min(0.85, 0.5 + bandVal * 0.8);
+        var targetScale = Math.min(1.18, 1 + bandVal * 0.35);
+        tl.to('#s1-aura', { opacity: targetOpacity, scale: targetScale, duration: 0.2, ease: 'sine.inOut' }, atTime);
+      }
+
+      tl.to('#s1-inner', { opacity: 0, duration: 0.35, ease: 'power1.inOut' }, 2.5);
+
+      // ===================== SCENE 2 — The streak, live =====================
+      tl.to('#s2-inner', { opacity: 1, duration: 0.35, ease: 'power1.inOut' }, 2.5);
+      tl.fromTo('#s2-panel', { y: 26, scale: 0.96 }, { y: 0, scale: 1, duration: 0.5, ease: 'power2.out' }, 2.55);
+
+      var streakObj = { val: 0 };
+      var streakEl = document.getElementById('streak-number');
+      tl.to(streakObj, {
+        val: 47,
+        duration: 1.2,
+        ease: 'power2.out',
+        onUpdate: function () { streakEl.textContent = Math.round(streakObj.val); },
+      }, 3.0);
+
+      tl.fromTo('#s2-stats', { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.4, ease: 'power2.out' }, 2.95);
+
+      tl.to('#s2-inner', { opacity: 0, duration: 0.35, ease: 'power1.inOut' }, 6.5);
+
+      // ===================== SCENE 3 — The catch =====================
+      tl.to('#s3-inner', { opacity: 1, duration: 0.35, ease: 'power1.inOut' }, 6.5);
+      tl.fromTo('#s3-readout', { opacity: 0, y: -10 }, { opacity: 1, y: 0, duration: 0.4, ease: 'power2.out' }, 6.6);
+      tl.fromTo('#s3-banner', { opacity: 0, y: -24 }, { opacity: 1, y: 0, duration: 0.4, ease: 'power2.out' }, 6.55);
+
+      // The flip: repair-window face crossfades to the frozen/safe face, beat-locked to 8.4405s.
+      tl.to('#banner-face-a', { opacity: 0, duration: 0.3, ease: 'power1.inOut' }, 8.4405);
+      tl.to('#banner-face-b', { opacity: 1, duration: 0.3, ease: 'power1.inOut' }, 8.4405);
+      tl.fromTo('#s3-banner', { scale: 1 }, { scale: 1.02, duration: 0.15, ease: 'power2.out', yoyo: true, repeat: 1, immediateRender: false }, 8.4405);
+
+      tl.to('#s3-inner', { opacity: 0, duration: 0.35, ease: 'power1.inOut' }, 11.5);
+
+      // ===================== SCENE 4 — Real activity, not a mockup =====================
+      tl.to('#s4-inner', { opacity: 1, duration: 0.35, ease: 'power1.inOut' }, 11.5);
+      tl.fromTo('#s4-panel', { y: 20, scale: 0.97 }, { y: 0, scale: 1, duration: 0.5, ease: 'power2.out' }, 11.55);
+
+      var TICK_TIMES = [11.60, 12.65, 13.70, 14.76, 15.81];
+      var COLS_PER_GROUP = 5;
+      for (var g = 0; g < TICK_TIMES.length; g++) {
+        var groupCells = [];
+        for (var gc = g * COLS_PER_GROUP; gc < (g + 1) * COLS_PER_GROUP; gc++) {
+          groupCells = groupCells.concat(columnEls[gc]);
+        }
+        tl.to(groupCells, {
+          opacity: 1,
+          duration: 0.3,
+          ease: 'power1.out',
+          stagger: 0.015,
+        }, TICK_TIMES[g]);
+      }
+
+      tl.fromTo('#s4-caption', { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.35, ease: 'power2.out' }, 15.85);
+
+      tl.to('#s4-inner', { opacity: 0, duration: 0.35, ease: 'power1.inOut' }, 16.0);
+
+      // ===================== SCENE 5 — The release =====================
+      tl.to('#s5-inner', { opacity: 1, duration: 0.35, ease: 'power1.inOut' }, 16.0);
+      tl.fromTo('#s5-card', { y: 18, scale: 0.97 }, { y: 0, scale: 1, duration: 0.4, ease: 'power2.out' }, 16.05);
+      tl.fromTo('#s5-trigger', { scale: 1 }, { scale: 1.16, duration: 0.09, ease: 'power2.out', yoyo: true, repeat: 1 }, 16.55);
+
+      var EMOJIS = ['\u{1F970}', '\u{1F929}', '\u{1F615}', '\u{1F97A}', '\u{1F604}'];
+      var burstRoot = document.getElementById('s5-burst-root');
+      var launchTimes = [16.60, 16.75, 16.90, 17.05, 17.20];
+      var driftX = [-90, -45, 0, 45, 90];
+
+      for (var e = 0; e < EMOJIS.length; e++) {
+        var span = document.createElement('span');
+        span.textContent = EMOJIS[e];
+        span.style.position = 'absolute';
+        span.style.left = '0';
+        span.style.top = '0';
+        span.style.display = 'inline-block';
+        span.style.fontSize = '38px';
+        span.style.marginLeft = '-19px';
+        span.style.marginTop = '-19px';
+        span.style.opacity = '0';
+        span.id = 's5-emoji-' + e;
+        // Burst particles are meant to cross paths transiently — intentional overlap.
+        span.setAttribute('data-layout-allow-overlap', 'true');
+        burstRoot.appendChild(span);
+
+        tl.fromTo('#s5-emoji-' + e,
+          { x: 0, y: 0, scale: 0.6, opacity: 0, rotation: 0 },
+          {
+            keyframes: [
+              { x: driftX[e] * 0.3, y: -90, scale: 1.1, opacity: 1, rotation: driftX[e] > 0 ? 8 : -8, duration: 0.35, ease: 'power2.out' },
+              { x: driftX[e] * 0.7, y: -190, scale: 1, opacity: 1, rotation: driftX[e] > 0 ? -4 : 4, duration: 0.35, ease: 'power1.inOut' },
+              { x: driftX[e], y: -270, scale: 0.85, opacity: 0, duration: 0.3, ease: 'power1.in' },
+            ],
+          },
+          launchTimes[e]
+        );
+      }
+
+      tl.to('#s5-card', { opacity: 0, scale: 0.97, duration: 0.35, ease: 'power1.inOut' }, 17.5);
+      tl.fromTo('#s5-wordmark', { opacity: 0, y: 20, scale: 0.96 }, { opacity: 1, y: 0, scale: 1, duration: 0.45, ease: 'power2.out' }, 17.55);
+
+      window.__timelines['main'] = tl;
+    </script>
+  </body>
+</html>
