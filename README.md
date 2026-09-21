@@ -4,7 +4,9 @@
 
 StreakForge pulls your contribution data from GitHub and LeetCode, maintains a daily streak counter, and protects it with **freeze credits** and a **24-hour repair window** so a missed day, timezone edge case, or one bad night doesn't wipe out real progress. It's a dark liquid-glass UI, installable as a mobile PWA, with push notifications and email reminders — see `AGENTS.md` for the full architecture.
 
-[![Watch the demo](brag-output/brag.jpg)](brag-output/brag.mp4)
+![StreakForge demo](brag-output/brag.gif)
+
+*([full quality with audio](brag-output/brag.mp4))*
 
 ## Features
 
