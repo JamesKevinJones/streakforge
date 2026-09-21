@@ -64,7 +64,13 @@ export default function SettingsForm({ userId, onSaved }) {
               if (cancelled || sub) return;
               setForm((prev) => ({ ...prev, notifications_enabled: false }));
               setPushWasReset(true);
-              supabase.from('profiles').update({ notifications_enabled: false }).eq('user_id', userId);
+              supabase
+                .from('profiles')
+                .update({ notifications_enabled: false })
+                .eq('user_id', userId)
+                .then(({ error: updateError }) => {
+                  if (updateError) console.error('Failed to reconcile stale push flag:', updateError);
+                });
             });
           }
         }
