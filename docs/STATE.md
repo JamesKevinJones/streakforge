@@ -3,7 +3,7 @@
 > Updated at the end of every session, by whichever agent was driving.
 > Keep it under a page. This is a baton, not a diary.
 
-**Last updated:** 2026-09-18 by claude-code (project-wide grilling pass)
+**Last updated:** 2026-09-21 by claude-code (brag video + push-permission live check)
 
 ## Where things stand
 
@@ -299,6 +299,47 @@ close out items that had sat open since Phase 1. Full reasoning for each in
 - [ ] Real end-to-end push notification test — needs the user's own real
       browser to click "Allow" on the permission prompt (automated/headless
       browsers correctly auto-deny it; this can't be tested from tooling).
+
+## 2026-09-21 — launch video + a real push-permission attempt
+
+Built and shipped a 19s launch video (`/brag`, Hyperframes) depicting the
+streak count-up, the freeze/repair-window save, the real GitHub heatmap, and
+the stress-buster — deliberately **not** push notifications, for the reason
+below. Embedded in the README as an autoplaying GIF (a plain committed `.mp4`
+gets no inline player on GitHub — `<video>` tags are stripped from README
+rendering too, confirmed by testing both on a throwaway branch before
+settling on the GIF approach); the full-quality mp4 with audio is linked
+underneath it.
+
+Also used this session's real browser pane to actually click through the
+push-notification toggle on the live production site (not just code review):
+logged in via a real magic-link round-trip, confirmed the mount-time
+stale-flag reconciliation banner display correctly, then clicked "Push
+notifications" for real. Confirmed **exactly** the previously-documented
+limitation below — `Notification.requestPermission()` resolves `"denied"`
+immediately with no prompt shown, confirmed to be this browser environment's
+own global default (same result on a fresh tab against `example.com`, before
+ever loading StreakForge) — not anything wrong with the app's own permission
+request or a per-origin StreakForge issue. The app handled it correctly:
+showed a clear "Notification permission was denied." message, and did not
+write a bogus `push_subscriptions` row.
+
+**Real bug found and fixed in the process**: the stale-flag reconciliation's
+own corrective DB write (`SettingsForm.jsx`, the `if (data.notifications_enabled)`
+branch) was fire-and-forget with no error handling. Confirmed via two direct
+Management-API reads a minute apart that it silently failed to persist —
+the UI showed the "corrected" banner while the DB kept `notifications_enabled: true`.
+Fixed by checking the update's `error` and logging it; also corrected the
+one stale row on the live test account directly. Small, isolated fix,
+pushed separately from the video commit.
+
+**Still open, same as before**: the actual "OS notification visibly
+appears" step needs the user's own real device/browser — this environment's
+browser pane cannot grant the permission (no accessible way to override the
+sandbox's global notification-block default; `chrome://settings` is blocked
+from this tooling). Everything else in the pipeline (subscribe code,
+DB write, deny-path error handling, reconciliation) is now verified for
+real, not just reviewed.
 
 ## The exact next step
 
