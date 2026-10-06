@@ -84,6 +84,23 @@ supabase/
    Phase 1 can't be fully verified without a real Supabase project; say so
    explicitly rather than claiming it works.
 
+## System Operating Modes
+
+Each mode is a persona defined in `.claude/modes/`. It sets what to focus on,
+how to judge the work, and the output format.
+
+| Mode | File | Switch (Claude Code) | Badge |
+| --- | --- | --- | --- |
+| Business Analyst | `ba.md` | `/mode ba` or `/ba` | `[Mode: Business Analyst]` |
+| System Architect | `architect.md` | `/mode architect` or `/architect` | `[Mode: System Architect]` |
+| Engineer (**default**) | `engineer.md` | `/mode engineer` or `/code` | `[Mode: Engineer]` |
+| Auditor | `auditor.md` | `/mode auditor` or `/audit` | `[Mode: Auditor]` |
+
+- `/mode reset` returns to Engineer.
+- **Start every response with the current mode's badge on its own line.** If no mode has been chosen this session, use `[Mode: Engineer]`.
+- A mode lasts until it is switched or reset. The Rules above apply in every mode.
+- Codex and `agy` don't have these slash commands. Say "switch to ba mode" and they read `.claude/modes/ba.md` directly.
+
 ## Read these too
 
 - `docs/STATE.md` — where we stopped, what's next
